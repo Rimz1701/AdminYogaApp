@@ -1,0 +1,49 @@
+<resources>
+    <!-- Spinner arrays -->
+    <string-array name="days_of_week">
+        <item>Monday</item>
+        <item>Tuesday</item>
+        <item>Wednesday</item>
+        <item>Thursday</item>
+        <item>Friday</item>
+        <item>Saturday</item>
+        <item>Sunday</item>
+    </string-array>
+
+    <string-array name="class_times">
+        <item>06:00</item>
+        <item>08:00</item>
+        <item>10:00</item>
+        <item>13:00</item>
+        <item>15:00</item>
+        <item>17:00</item>
+        <item>19:00</item>
+    </string-array>
+
+    <string-array name="class_types">
+        <item>Flow Yoga</item>
+        <item>Aerial Yoga</item>
+        <item>Family Yoga</item>
+        <item>Yin Yoga</item>
+        <item>Hot Yoga</item>
+        <item>Vinyasa Yoga</item>
+        <item>Hatha Yoga</item>
+    </string-array>
+
+    <!-- Labels -->
+    <string name="label_day">Day</string>
+    <string name="label_time">Time</string>
+    <string name="label_type">Type</string>
+    <string name="hint_capacity">Capacity</string>
+    <string name="hint_duration">Duration (mins)</string>
+    <string name="hint_price">Price (£)</string>
+    <string name="hint_description">Description</string>
+
+    <!-- Buttons -->
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Toast messages -->
+    <string name="course_updated">Course updated</string>
+    <string name="course_update_failed">Failed to update course</string>
+</resources>
