@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.util.Log; // Import Log
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -15,13 +16,16 @@ import com.example.yogaadminapp.db.YogaDBHelper;
 import com.example.yogaadminapp.models.ClassInstanceModel;
 import com.example.yogaadminapp.models.CourseModel;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.WriteBatch; // Import WriteBatch
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class UploadToCloudActivity extends AppCompatActivity {
 
+    private static final String TAG = "UploadToCloudActivity"; // Tag để debug
     private YogaDBHelper dbHelper;
     private TextView tvStatus;
     private Button btnUpload;
@@ -40,7 +44,8 @@ public class UploadToCloudActivity extends AppCompatActivity {
 
         btnUpload.setOnClickListener(v -> {
             if (!isNetworkAvailable()) {
-                Toast.makeText(this, "Không có kết nối Internet!", Toast.LENGTH_SHORT).show();
+                tvStatus.setText("Status: No Internet Connection!");
+                Toast.makeText(this, "No Internet Connection!", Toast.LENGTH_SHORT).show();
                 return;
             }
             uploadDataToFirestore();
@@ -48,11 +53,24 @@ public class UploadToCloudActivity extends AppCompatActivity {
     }
 
     private void uploadDataToFirestore() {
+        // Cập nhật trạng thái ngay khi bắt đầu
+        tvStatus.setText("Status: Starting upload...");
+        btnUpload.setEnabled(false);
+
         List<CourseModel> courses = dbHelper.getAllCoursesWithInstances();
+
+        // Xử lý trường hợp không có dữ liệu để upload
+        if (courses.isEmpty()) {
+            tvStatus.setText("Status: No data to upload.");
+            btnUpload.setEnabled(true);
+            Toast.makeText(this, "Local database is empty.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        WriteBatch batch = firestore.batch();
 
         for (CourseModel course : courses) {
             Map<String, Object> courseMap = new HashMap<>();
-            courseMap.put("id", course.getId());
             courseMap.put("dayOfWeek", course.getDayOfWeek());
             courseMap.put("time", course.getTime());
             courseMap.put("capacity", course.getCapacity());
@@ -61,39 +79,50 @@ public class UploadToCloudActivity extends AppCompatActivity {
             courseMap.put("type", course.getType());
             courseMap.put("description", course.getDescription());
 
-            // Upload course
-            firestore.collection("courses")
-                    .document(String.valueOf(course.getId()))
-                    .set(courseMap)
-                    .addOnSuccessListener(aVoid -> {
-                        List<ClassInstanceModel> instances = course.getClassInstances();
-                        if (instances != null) {
-                            for (ClassInstanceModel instance : instances) {
-                                Map<String, Object> instanceMap = new HashMap<>();
-                                instanceMap.put("id", instance.getId());
-                                instanceMap.put("courseId", instance.getCourseId());
-                                instanceMap.put("date", instance.getDate());
-                                instanceMap.put("teacher", instance.getTeacher());
-                                instanceMap.put("comment", instance.getComment());
+            // Thêm thao tác ghi course vào batch
+            batch.set(firestore.collection("courses").document(String.valueOf(course.getId())), courseMap);
 
-                                // Add instance as subcollection
-                                firestore.collection("courses")
-                                        .document(String.valueOf(course.getId()))
-                                        .collection("instances")
-                                        .add(instanceMap);
-                            }
-                        }
-                        runOnUiThread(() -> tvStatus.setText("✅ Upload thành công!"));
-                    })
-                    .addOnFailureListener(e -> runOnUiThread(() ->
-                            tvStatus.setText("❌ Upload thất bại: " + e.getMessage())));
+            List<ClassInstanceModel> instances = course.getClassInstances();
+            if (instances != null && !instances.isEmpty()) {
+                for (ClassInstanceModel instance : instances) {
+                    Map<String, Object> instanceMap = new HashMap<>();
+                    instanceMap.put("date", instance.getDate());
+                    instanceMap.put("teacher", instance.getTeacher());
+                    instanceMap.put("comment", instance.getComment());
+
+                    // Thêm thao tác ghi instance vào batch
+                    batch.set(firestore.collection("courses").document(String.valueOf(course.getId()))
+                            .collection("instances").document(), instanceMap);
+                }
+            }
         }
+
+        // Thực thi toàn bộ batch
+        batch.commit()
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Batch commit successful!");
+                    // Cập nhật UI trên luồng chính
+                    runOnUiThread(() -> {
+                        tvStatus.setText("Status: ✅ Upload successful!");
+                        Toast.makeText(UploadToCloudActivity.this, "All data has been synchronized.", Toast.LENGTH_LONG).show();
+                        btnUpload.setEnabled(true);
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Batch commit failed: ", e);
+                    // Cập nhật UI trên luồng chính
+                    runOnUiThread(() -> {
+                        tvStatus.setText("Status: ❌ Upload failed: " + e.getMessage());
+                        btnUpload.setEnabled(true);
+                    });
+                });
     }
 
     private boolean isNetworkAvailable() {
         ConnectivityManager cm = (ConnectivityManager)
                 getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
         NetworkInfo active = cm.getActiveNetworkInfo();
-        return active != null && active.isConnected();
+        return active != null && active.isConnectedOrConnecting();
     }
 }
