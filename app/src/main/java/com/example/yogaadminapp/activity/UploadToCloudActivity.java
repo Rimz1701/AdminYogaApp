@@ -53,7 +53,6 @@ public class UploadToCloudActivity extends AppCompatActivity {
     }
 
     private void uploadDataToFirestore() {
-        // Cập nhật trạng thái ngay khi bắt đầu
         tvStatus.setText("Status: Starting upload...");
         btnUpload.setEnabled(false);
 
@@ -97,7 +96,6 @@ public class UploadToCloudActivity extends AppCompatActivity {
             }
         }
 
-        // Thực thi toàn bộ batch
         batch.commit()
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Batch commit successful!");
